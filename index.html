@@ -44,8 +44,8 @@
       </td></tr></table>
       <h1>Parameters</h1>
       <div class="sliderContainer">
-            Oscillations: <span id="oscvalue"></span> samples per pulse
-            <input type="range" min="1" max="128" value="50" class="slider" id="oscslider">
+            Oscillations: <span id="oscvalue"></span> / 8 samples per pulse
+            <input type="range" min="1" max="512" value="256" class="slider" id="oscslider">
             <b>qty</b> <i>(supersamples decimated): </i><span id="qtyvalue"></span>
             <input type="range" min="1" max="16" value="16" class="slider" id="qtyslider">
             <b>rnd</b> <i>(acceleration strength): </i><span id="rndvalue"></span>
@@ -162,7 +162,7 @@
 
         function getLowpassParams(){
           return {
-            "osc": oscSl.value,
+            "osc": oscSl.value/8,
             "qty": qtySl.value,
             "rnd": rndSl.value,
             "dec": decSl.value,
