@@ -1,0 +1,303 @@
+<html>
+  <!--
+    Arranged by Kouzerumatsu 9/21/2021
+    The code mostly stolen from references
+    - https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode
+    - https://developer.mozilla.org/en-US/docs/Web/API/AudioContext
+    - https://stackoverflow.com/questions/6921792/how-to-draw-circle-in-html-page
+    - https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Drawing_shapes
+    - https://www.javascripttutorial.net/javascript-dom/javascript-change-event/
+    - https://www.w3schools.com/tags/att_input_type_radio.asp
+    - https://www.a1k0n.net/2015/11/09/javascript-ft2-player.html
+    - some stackexchanges and google.
+  -->
+    <body>
+      <table><tr><td>
+        <h1>Waveplot view</h1>
+        <div class="wavevisContainer">
+          <canvas id="waveVis" height="240px" width="720px"></canvas>
+        </div>
+      </td><td>
+        <h1>Spectrograph view:</h1>
+        <div class="wavevisContainer">
+          <canvas id="spectro" height="240px" width="512px"></canvas>
+        </div>
+      </td></tr></table>
+      <table><tr><td>
+        <button id="playButton" onclick="initializeAudio('playButton')">Start sound</button>
+      </td><td>
+        <form id="wave-shape">
+          <div id="error-audio"></div>
+          <label class="radio-inline">
+            <input type="radio" name="optshape" class="shapeRadio" checked>Sine
+          </label>
+          <label class="radio-inline">
+            <input type="radio" name="optshape" class="shapeRadio">Square
+          </label>
+          <label class="radio-inline">
+            <input type="radio" name="optshape" class="shapeRadio">Sawtooth
+          </label>
+          <label class="radio-inline">
+            <input type="radio" name="optshape" class="shapeRadio">Noise
+          </label>
+        </form>
+      </td></tr></table>
+      <h1>Parameters</h1>
+      <div class="sliderContainer">
+            Oscillations: <span id="oscvalue"></span> samples per pulse
+            <input type="range" min="1" max="128" value="50" class="slider" id="oscslider">
+            <b>qty</b> <i>(supersamples decimated): </i><span id="qtyvalue"></span>
+            <input type="range" min="1" max="16" value="16" class="slider" id="qtyslider">
+            <b>rnd</b> <i>(acceleration strength): </i><span id="rndvalue"></span>
+            <input type="range" min="1" max="128" value="64" class="slider" id="rndslider">
+            <b>dec</b> <i>(velocity attenuation): </i><span id="decvalue"></span>
+            <input type="range" min="1" max="128" value="8" class="slider" id="decslider">
+        </div>
+    </body>
+    <script>
+        var oscSl = document.getElementById("oscslider"), oscVal = document.getElementById("oscvalue");
+        var qtySl = document.getElementById("qtyslider"), qtyVal = document.getElementById("qtyvalue");
+        var rndSl = document.getElementById("rndslider"), rndVal = document.getElementById("rndvalue");
+        var decSl = document.getElementById("decslider"), decVal = document.getElementById("decvalue");
+        var wavVs = document.getElementById("waveVis"),   spectr = document.getElementById("spectro");
+        var rdShp = document.querySelectorAll(".shapeRadio");
+
+        function updateValues(){
+            oscVal.innerHTML = oscSl.value;
+            qtyVal.innerHTML = qtySl.value;
+            rndVal.innerHTML = rndSl.value;
+            decVal.innerHTML = decSl.value;
+        }
+
+        function drawWavePlot(){
+          var _ = wavVs.getContext("2d")
+          var W = wavVs.width;
+          var H = wavVs.height;
+          var sY = H/2*0.5
+
+          _.fillStyle = "#222222"
+          _.fillRect(0,0,W,H)
+
+          _.fillStyle = "#555555"
+          _.fillRect(W/2,0,2,H)
+          _.fillRect(0,H/2,W,2)
+
+          var pos = 0;
+          
+          var params = getLowpassParams()
+          var shape = params.shape;
+          var osc = params.osc;
+          var qty = params.osc;
+          var rnd = params.osc;
+          var dec = params.osc;
+          var step = 1/osc;
+          var shape = getShapeSelect();
+          
+          var D = new Float32Array(Math.floor(W/3))
+          var E = oscillations(Math.floor(D.length));
+          for(var i=0;i<D.length;i++){
+            D[i] = shapes[shape](pos);
+            pos=(pos+step)%2;
+          }
+
+          _.strokeStyle = "#AAAAAA"
+          _.beginPath()
+          _.moveTo(0,H/2+D[0]*sY)
+          for(var x=0,i=1;i<D.length;i++){
+            _.lineTo(x+=3,D[i]*sY+H/2)
+            
+          }
+          _.stroke()
+
+          _.strokeStyle = "#FFFF00"
+          _.beginPath()
+          _.moveTo(0,H/2+E[0]*sY)
+          for(var x=0,i=1;i<E.length;i++){
+            _.lineTo(x+=3,E[i]*sY+H/2)
+            
+          }
+          _.stroke()
+
+          _.strokeStyle = "#00FFFF"
+          
+          _.moveTo(0,H/2+E[0]*sY)
+          for(var x=0,i=1;i<E.length;i++){
+            _.beginPath()
+            _.arc(x+=3, E[i]*sY+H/2, 2, 0, Math.PI * 2, false);
+            _.stroke()
+          }
+
+          if(audioctx) drawSpectrograph()
+        }
+
+        function drawSpectrograph() {
+          var canvas = spectr;
+          var canvasCtx = spectr.getContext("2d");
+
+          fftNode.getFloatFrequencyData(fftNode.dataArray);
+
+          canvasCtx.fillStyle = "#000000";
+          canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+          canvasCtx.fillStyle = "#FF0000";
+          var sliceWidth = canvas.width * 1 / fftNode.bufferLength;
+          var x = 0;
+
+          for (var i = 0; i < fftNode.bufferLength; i++) {
+
+            var v = (60+fftNode.dataArray[i])/64;
+            var y = v * canvas.height;
+
+            canvasCtx.fillRect(x,canvas.height-y,sliceWidth,y)
+            x += sliceWidth;
+          }
+        }
+
+        var shapes = [
+          _=>Math.sin(3.14159265358979*_),
+          _=>2*((_/2)%1<0.5)-1,
+          _=>2*((_/2)%1)-1,
+          _=>2*Math.random()-1,
+        ]
+
+        function getLowpassParams(){
+          return {
+            "osc": oscSl.value,
+            "qty": qtySl.value,
+            "rnd": rndSl.value,
+            "dec": decSl.value,
+            "shape": getShapeSelect()
+            }
+        }
+        function getShapeSelect(){
+          for(var k=0;k<rdShp.length;k++){
+            if(rdShp[k].checked) return k
+          }
+        }
+
+        function oscillations(length,
+          sampleState={"pos":0,"val":0,"vel":0}){
+          var params = getLowpassParams()
+          var shape = params.shape;
+          var osc = params.osc;
+          var qty = params.qty;
+          var rnd = params.rnd;
+          var dec = params.dec;
+          
+          var pos = sampleState.pos;
+          var val = sampleState.val;
+          var vel = sampleState.vel;
+
+          var data = new Float32Array(length);
+          var step = 1/osc;
+
+          for(var i = 0; i < data.length; i++) {
+            for(var j = 0; j < qty; j++){
+              var sample = shapes[shape](pos)
+              pos = ( pos + step / qty ) % 2;
+              vel += sample - val - vel / dec;
+              val += vel / rnd;
+            }
+            data[i] = val;
+          }
+
+          sampleState.pos=pos;
+          sampleState.val=val;
+          sampleState.vel=vel;
+
+          return data;
+        }
+
+        oscSl.oninput = updateValues
+        qtySl.oninput = updateValues
+        rndSl.oninput = updateValues
+        decSl.oninput = updateValues
+        for(var k=0; k<rdShp.length; k++)
+          rdShp[k].onchange = updateValues
+
+        var audioctx, gainNode, jsNode, fftNode;
+        var sampleStates = {"pos":0,"vel":0,"val":0};
+
+        function initializeAudio(target){
+          if (!audioctx) {
+            var AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioctx = new AudioContext();
+          }
+          if(audioctx){
+            if(!jsNode){
+              gainNode = audioctx.createGain();
+              gainNode.gain.value = 0.1;  // master volume
+              jsNode = audioctx.createScriptProcessor(2048, 0, 1);
+              jsNode.onaudioprocess = function(e) {
+                var buflen = e.outputBuffer.length;
+                var data = e.outputBuffer.getChannelData(0);
+                var E = oscillations(data.length,sampleStates)
+                for(var i=0;i<data.length;i++)
+                data[i] = E[i];
+              };
+              jsNode.connect(gainNode);
+              gainNode.connect(audioctx.destination);
+
+              fftNode = audioctx.createAnalyser();
+              fftNode.fftSize = 1024;
+
+              fftNode.bufferLength = fftNode.frequencyBinCount;
+              fftNode.dataArray = new Float32Array(fftNode.bufferLength);
+              fftNode.getFloatFrequencyData(fftNode.dataArray);
+
+              jsNode.connect(fftNode);
+              document.getElementById(target).innerHTML="Stop sound";
+            }else{
+              jsNode.disconnect();
+              gainNode.disconnect();
+              fftNode.disconnect();
+              jsNode = null;
+              document.getElementById(target).innerHTML="Start sound";
+            }
+          }
+        }
+
+        setInterval(drawWavePlot,1000/60)
+        updateValues()
+    </script>
+    <style>
+        .slidecontainer {
+          width: 100%;
+        }
+        
+        .slider {
+          -webkit-appearance: none;
+          width: 100%;
+          height: 25px;
+          background: #d3d3d3;
+          outline: none;
+          opacity: 0.7;
+          -webkit-transition: .2s;
+          transition: opacity .2s;
+        }
+        
+        .slider:hover {
+          opacity: 1;
+        }
+        
+        .slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 25px;
+          height: 25px;
+          background: #04AA6D;
+          cursor: pointer;
+        }
+        
+        .slider::-moz-range-thumb {
+          width: 25px;
+          height: 25px;
+          background: #04AA6D;
+          cursor: pointer;
+        }
+
+        #wave-shape {
+          margin:auto;
+        }
+        </style>
+</html>
