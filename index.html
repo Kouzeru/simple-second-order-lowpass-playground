@@ -13,63 +13,106 @@
   -->
     <body>
       <table><tr><td>
-        <h1>Waveplot view</h1>
-        <div class="wavevisContainer">
-          <canvas id="waveVis" height="240px" width="720px"></canvas>
-        </div>
-      </td><td>
-        <h1>Spectrograph view:</h1>
-        <div class="wavevisContainer">
-          <canvas id="spectro" height="240px" width="512px"></canvas>
-        </div>
-      </td></tr></table>
-      <table><tr><td>
-        <button id="playButton" onclick="initializeAudio('playButton')">Start sound</button>
-      </td><td>
-        <form id="wave-shape">
-          <div id="error-audio"></div>
-          <label class="radio-inline">
-            <input type="radio" name="optshape" class="shapeRadio" checked>Sine
-          </label>
-          <label class="radio-inline">
-            <input type="radio" name="optshape" class="shapeRadio">Square
-          </label>
-          <label class="radio-inline">
-            <input type="radio" name="optshape" class="shapeRadio">Sawtooth
-          </label>
-          <label class="radio-inline">
-            <input type="radio" name="optshape" class="shapeRadio">Noise
-          </label>
-        </form>
-      </td></tr></table>
-      <h1>Parameters</h1>
+        <table><tr><td><h1>Waveplot view: </h1></td><td>
+          <table><tr><td>
+            <form id="wave-shape">
+              <div id="error-audio"></div>
+              <label class="radio-inline">
+                <input type="radio" name="optshape" class="shapeRadio">Sine
+              </label>
+              <label class="radio-inline">
+                <input type="radio" name="optshape" class="shapeRadio">Triangle
+              </label>
+              <label class="radio-inline">
+                <input type="radio" name="optshape" class="shapeRadio" checked>Pulse
+              </label>
+              <label class="radio-inline">
+                <input type="radio" name="optshape" class="shapeRadio">Noise
+              </label>
+            </form>
+            </td><td><table><tr><td><span id="prate">Pulse rate: </span><span id="dtyvalue"></span></td></tr><tr><td>
+              <input type="range" min="0" max="64" value="32" class="slider" id="dtyslider">
+              </td><td>
+                <label>
+                  <input type="checkbox" id="lockpos" checked>Lock position
+                </label>
+              </td></tr></table>
+            </td></tr></table>
+          </td></tr></table>
+        </td><td>
+          <table><tr><td><h1>Spectrograph view: </h1></td>
+            <td><button id="playButton" onclick="initializeAudio('playButton')">Start sound</button></td></tr>
+          </td></tr></table>
+          
+        </td></tr><tr><td>
+          <div class="wavevisContainer">
+            <canvas id="waveViszr" height="256px" width="768px"></canvas>
+          </div>
+        </td><td>
+          <div class="wavevisContainer">
+            <canvas id="spectrog" height="256px" width="512px"></canvas>
+          </div>
+        </td></tr>
+      </table>
+      <table>
+        <tr>
+          <td>
+            <h1>Low-pass parameters:</h1>
+          </td>
+          <td>
+            <form id="lowpass-setting">
+              <label class="radio-inline">
+                <input type="radio" name="optshape" class="lowpassRadio"> Zero-order (Rectangular)
+              </label>
+              <label class="radio-inline">
+                <input type="radio" name="optshape" class="lowpassRadio"> First-order (Exponential)
+              </label>
+              <label class="radio-inline">
+                <input type="radio" name="optshape" class="lowpassRadio" checked> Second-order (Elastic)
+              </label>
+            </form>
+          </td>
+        </tr>
+      </table>
       <div class="sliderContainer">
-            Oscillations: <span id="oscvalue"></span> / 8 samples per pulse
-            <input type="range" min="1" max="512" value="256" class="slider" id="oscslider">
-            <b>qty</b> <i>(supersamples decimated): </i><span id="qtyvalue"></span>
-            <input type="range" min="1" max="16" value="16" class="slider" id="qtyslider">
-            <b>rnd</b> <i>(acceleration strength): </i><span id="rndvalue"></span>
-            <input type="range" min="1" max="128" value="64" class="slider" id="rndslider">
-            <b>dec</b> <i>(velocity attenuation): </i><span id="decvalue"></span>
-            <input type="range" min="1" max="128" value="8" class="slider" id="decslider">
-        </div>
+        Oscillations: <span id="oscvalue"></span> samples per pulse
+        <input type="range" min="1" max="512" value="256" class="slider" id="oscslider">
+        <b>qty</b> <i>(supersamples decimated): </i><span id="qtyvalue"></span>
+        <input type="range" min="1" max="32" value="16" class="slider" id="qtyslider">
+        <b>rnd</b> <i>(acceleration strength): </i><span id="rndvalue"></span>
+        <input type="range" min="1" max="256" value="8" class="slider" id="rndslider">
+        <b>dec</b> <i>(velocity attenuation): </i><span id="decvalue"></span>
+        <input type="range" min="1" max="256" value="8" class="slider" id="decslider">
+      </div>
     </body>
     <script>
         var oscSl = document.getElementById("oscslider"), oscVal = document.getElementById("oscvalue");
         var qtySl = document.getElementById("qtyslider"), qtyVal = document.getElementById("qtyvalue");
         var rndSl = document.getElementById("rndslider"), rndVal = document.getElementById("rndvalue");
         var decSl = document.getElementById("decslider"), decVal = document.getElementById("decvalue");
-        var wavVs = document.getElementById("waveVis"),   spectr = document.getElementById("spectro");
+        var wavVs = document.getElementById("waveViszr"), spectr = document.getElementById("spectrog");
+        var dtySl = document.getElementById("dtyslider"), dtyVal = document.getElementById("dtyvalue");
         var rdShp = document.querySelectorAll(".shapeRadio");
+        var rdLwp = document.querySelectorAll(".lowpassRadio");
+        var lockP = document.getElementById("lockpos");
+        wavVs.ss = {"pos":0,"val":0,"vel":0,"dco":0}
 
         function updateValues(){
-            oscVal.innerHTML = oscSl.value;
-            qtyVal.innerHTML = qtySl.value;
-            rndVal.innerHTML = rndSl.value;
-            decVal.innerHTML = decSl.value;
+          var params = getLowpassParams()
+          oscVal.innerHTML = params.osc;
+          qtyVal.innerHTML = params.qty;
+          rndVal.innerHTML = params.rnd;
+          decVal.innerHTML = params.dec;
+          lastQTY = qtySl.value;
+          lastRND = rndSl.value;
+          lastDTY = dtySl.value;
+          dtyVal.innerHTML =
+            getSelect(rdShp)<3?
+            (dtySl.value/64).toFixed(3):"";
         }
 
         function drawWavePlot(){
+          requestAnimationFrame(drawWavePlot)
           var _ = wavVs.getContext("2d")
           var W = wavVs.width;
           var H = wavVs.height;
@@ -83,6 +126,7 @@
           _.fillRect(0,H/2,W,2)
 
           var pos = 0;
+          if (wavVs.ss) pos = wavVs.ss.pos
           
           var params = getLowpassParams()
           var shape = params.shape;
@@ -90,40 +134,57 @@
           var qty = params.osc;
           var rnd = params.osc;
           var dec = params.osc;
-          var step = 1/osc;
-          var shape = getShapeSelect();
+          var step = 1/osc/6;
+          var shape = getSelect(rdShp);
           
-          var D = new Float32Array(Math.floor(W/3))
-          var E = oscillations(Math.floor(D.length));
-          for(var i=0;i<D.length;i++){
-            D[i] = shapes[shape](pos);
+          var E = oscillations(512,wavVs.ss);
+          
+          var Z = FFT(new Float32Array(E),new Float32Array(E.length))
+          var fR = Z[0], fI = Z[1];
+          var zR = new Float32Array(fR.length*4);
+          var zI = new Float32Array(fI.length*4);
+          zR.set(fR.slice(0,256),0);
+          zR.set(fR.slice(256),2048-256);
+          zI.set(fI.slice(0,256),0);
+          zI.set(fI.slice(256),2048-256);
+          var ZZ = FFT(zR,zI,-1)
+          F = ZZ[0].map(_=>_/512).reverse()
+          
+          _.strokeStyle = "#AAAAAA"
+          _.beginPath()
+          var o = 0;
+          if(lockP.checked)
+            o = (2+(2-pos-step*W)%2)%2;
+          _.moveTo(0,H/2+shapes[shape]((pos+o)%2)*sY);
+          pos=(pos+step)%2;
+          for(var x=0,i=1;x<W;i++){
+            _.lineTo(x+=0.5,shapes[shape]((pos+o)%2)*sY+H/2)
             pos=(pos+step)%2;
           }
 
-          _.strokeStyle = "#AAAAAA"
-          _.beginPath()
-          _.moveTo(0,H/2+D[0]*sY)
-          for(var x=0,i=1;i<D.length;i++){
-            _.lineTo(x+=3,D[i]*sY+H/2)
-            
-          }
           _.stroke()
 
           _.strokeStyle = "#FFFF00"
           _.beginPath()
-          _.moveTo(0,H/2+E[0]*sY)
-          for(var x=0,i=1;i<E.length;i++){
-            _.lineTo(x+=3,E[i]*sY+H/2)
+          var o = 0;
+          if(lockP.checked)
+            o = Math.round(0.25*F.length-pos*osc*4-1)
+          _.moveTo(0,H/2+F[o]*sY)
+          for(var x=0,i=o+1;x<W;i++){
+            _.lineTo(x+=3/4,F[i]*sY+H/2)
             
           }
           _.stroke()
 
           _.strokeStyle = "#00FFFF"
           
-          _.moveTo(0,H/2+E[0]*sY)
-          for(var x=0,i=1;i<E.length;i++){
+          var o = 0
+          if(lockP.checked)
+            o = Math.round(0.25*E.length-pos*osc)
+          _.moveTo(0,H/2+E[o]*sY)
+          for(var x=0,i=1;x<W;i++){
             _.beginPath()
-            _.arc(x+=3, E[i]*sY+H/2, 2, 0, Math.PI * 2, false);
+            _.arc(x+=3, E[i+o]*sY+H/2, 2, 0, Math.PI * 2, false);
             _.stroke()
           }
 
@@ -153,30 +214,76 @@
           }
         }
 
+        function FFT(R,I,s=1){
+        //The original code is ported directly from:
+        //https://youtu.be/h7apO7q16V0
+          var n = R.length;
+          if (n == 1)  return [R,I]
+          var Wr = Math.cos(2*Math.PI/n)
+          var Wi = Math.sin(2*Math.PI/n)
+          var PEr=new Float32Array(n/2)
+          var PEi=new Float32Array(n/2)
+          var POr=new Float32Array(n/2)
+          var POi=new Float32Array(n/2)
+          for(var z=0;z<n;z++){
+            if(z&1){
+              POr[z>>1]=R[z]
+              POi[z>>1]=I[z]
+            }else{
+              PEr[z>>1]=R[z]
+              PEi[z>>1]=I[z]
+            }
+          }
+          
+          var ye = FFT(PEr,PEi)
+          var yo = FFT(POr,POi)
+          var yer = ye[0], yei = ye[1];
+          var yor = yo[0], yoi = yo[1];
+          var yr = new Float32Array(n)
+          var yi = new Float32Array(n)
+          
+          for(var z=0,m=n/2,p=1,q=0,r=0;z<m;z++){
+            var a=yer[z],b=yei[z];
+            var c=yor[z],d=yoi[z];
+            yr[z  ]=a+p*c-q*d;
+            yi[z  ]=b+p*d+q*c;
+            yr[z+m]=a-p*c+q*d;
+            yi[z+m]=b-p*d-q*c;
+            r=p*Wr-q*Wi;
+            q=p*Wi+q*Wr;
+            p=r;
+          }
+          return [yr,yi];
+        }
+
         var shapes = [
-          _=>Math.sin(3.14159265358979*_),
-          _=>2*((_/2)%1<0.5)-1,
-          _=>2*((_/2)%1)-1,
+          _=>Math.sin(Math.PI*(_+8*(lastDTY/64)**2*Math.sin(Math.PI*_))),
+          _=>2*(_/2<lastDTY/64?_/2/lastDTY*64:1-(_/2-lastDTY/64)/(1-lastDTY/64))-1,
+          _=>2*((_/2)%1<lastDTY/64)-1,
           _=>2*Math.random()-1,
         ]
 
         function getLowpassParams(){
+          var k = getSelect(rdLwp)
           return {
             "osc": oscSl.value/8,
             "qty": qtySl.value,
-            "rnd": rndSl.value,
-            "dec": decSl.value,
-            "shape": getShapeSelect()
+            "rnd": k<1?1:
+              k<2?rndSl.value:
+              rndSl.value**2,
+            "dec": k<2?1:
+              decSl.value,
+            "shape": getSelect(rdShp)
             }
         }
-        function getShapeSelect(){
-          for(var k=0;k<rdShp.length;k++){
-            if(rdShp[k].checked) return k
+        function getSelect(target){
+          for(var k=0;k<target.length;k++){
+            if(target[k].checked) return k
           }
         }
 
         function oscillations(length,
-          sampleState={"pos":0,"val":0,"vel":0}){
+          sampleState={"pos":0,"val":0,"vel":0,"dco":0}){
           var params = getLowpassParams()
           var shape = params.shape;
           var osc = params.osc;
@@ -184,19 +291,21 @@
           var rnd = params.rnd;
           var dec = params.dec;
           
-          var pos = sampleState.pos;
-          var val = sampleState.val;
-          var vel = sampleState.vel;
+          var pos = sampleState.pos; // SAMPLE POSITION
+          var val = sampleState.val; // BLEP VALUE
+          var vel = sampleState.vel; // BLEP VELOCITY
+          var dco = sampleState.dco; // DC OFFSET CANCELLATION
 
           var data = new Float32Array(length);
           var step = 1/osc;
 
           for(var i = 0; i < data.length; i++) {
             for(var j = 0; j < qty; j++){
-              var sample = shapes[shape](pos)
+              var sample = shapes[shape](pos) - dco
               pos = ( pos + step / qty ) % 2;
               vel += sample - val - vel / dec;
-              val += vel / rnd;
+              val += vel / rnd ;
+              //dco += sample / 64;
             }
             data[i] = val;
           }
@@ -204,19 +313,65 @@
           sampleState.pos=pos;
           sampleState.val=val;
           sampleState.vel=vel;
+          sampleState.dco=dco;
 
           return data;
         }
+
+        var lastQTY = qtySl.value;
+        var lastDTY = dtySl.value;
+        var lastRND = rndSl.value**2;
 
         oscSl.oninput = updateValues
         qtySl.oninput = updateValues
         rndSl.oninput = updateValues
         decSl.oninput = updateValues
+        dtySl.oninput = updateValues
+
+        function changeShape(){
+          var pRate = document.getElementById("prate")
+          switch(getSelect(rdShp)){
+            case 0: 
+              dtySl.disabled = false;
+              pRate.innerHTML = "Modulate rate: "; break;
+            case 1:
+              dtySl.disabled = false;
+              pRate.innerHTML = "Slope rate: "; break;
+            case 2:
+              dtySl.disabled = false;
+              pRate.innerHTML = "Pulse rate: "; break;
+            case 3:
+              dtySl.disabled = true;
+              pRate.innerHTML = "White noise "; break;
+          }
+          updateValues()
+        }
+
+        function changeLowpass(){
+          switch(getSelect(rdLwp)){
+            case 0: 
+              rndSl.disabled = true;
+              decSl.disabled = true;
+              break;
+            case 1:
+              rndSl.disabled = false;
+              decSl.disabled = true;
+              break;
+            case 2:
+              rndSl.disabled = false;
+              decSl.disabled = false;
+              break;
+          }
+          updateValues()
+        }
+
         for(var k=0; k<rdShp.length; k++)
-          rdShp[k].onchange = updateValues
+          rdShp[k].onchange = changeShape
+        for(var k=0; k<rdLwp.length; k++)
+          rdLwp[k].onchange = changeLowpass
 
         var audioctx, gainNode, jsNode, fftNode;
-        var sampleStates = {"pos":0,"vel":0,"val":0};
+        var sampleStates = {"pos":0,"vel":0,"val":0,"dco":0};
 
         function initializeAudio(target){
           if (!audioctx) {
@@ -257,7 +412,7 @@
           }
         }
 
-        setInterval(drawWavePlot,1000/60)
+        requestAnimationFrame(drawWavePlot)
         updateValues()
     </script>
     <style>
@@ -268,7 +423,7 @@
         .slider {
           -webkit-appearance: none;
           width: 100%;
-          height: 25px;
+          height: 15px;
           background: #d3d3d3;
           outline: none;
           opacity: 0.7;
@@ -283,20 +438,28 @@
         .slider::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 25px;
-          height: 25px;
+          width: 15px;
+          height: 15px;
           background: #04AA6D;
           cursor: pointer;
         }
         
         .slider::-moz-range-thumb {
-          width: 25px;
-          height: 25px;
+          width: 15px;
+          height: 15px;
           background: #04AA6D;
           cursor: pointer;
         }
 
-        #wave-shape {
+        .slider:disabled::-webkit-slider-thumb {
+          background: #777777 !important;
+        }
+
+        .slider:disabled::-moz-range-thumb {
+          background: #777777 !important;
+        }
+
+        form, h1 {
           margin:auto;
         }
         </style>
