@@ -7,4 +7,5 @@ You are playing with a simple approach of doing the second-order of lowpass filt
 diagram by Kagamiin~
 
 # Why setting dec to 1 makes it single-order lowpass?
+![This](https://media.discordapp.net/attachments/789290959501787166/891684317221244958/unknown.png)
 ![This](https://cdn.discordapp.com/attachments/789290959501787166/890802958881673296/unknown.png)
