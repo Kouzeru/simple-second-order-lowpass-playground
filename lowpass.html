@@ -54,12 +54,6 @@
           </div>
         </td></tr>
       </table>
-      <div class="sliderContainer">
-        Oscillations: <span id="oscvalue"></span> samples per pulse
-        <input type="range" min="1" max="512" value="256" class="slider" id="oscslider">
-        <b>qty</b> <i>(supersamples decimated): </i><span id="qtyvalue"></span>
-        <input type="range" min="1" max="32" value="16" class="slider" id="qtyslider">
-      </div>
       <table>
         <tr>
           <td>
@@ -81,36 +75,14 @@
         </tr>
       </table>
       <div class="sliderContainer">
+        Oscillations: <span id="oscvalue"></span> samples per pulse
+        <input type="range" min="1" max="512" value="256" class="slider" id="oscslider">
+        <b>qty</b> <i>(supersamples decimated): </i><span id="qtyvalue"></span>
+        <input type="range" min="1" max="32" value="16" class="slider" id="qtyslider">
         <b>rnd</b> <i>(acceleration strength): </i><span id="rndvalue"></span>
         <input type="range" min="1" max="256" value="8" class="slider" id="rndslider">
         <b>dec</b> <i>(velocity attenuation): </i><span id="decvalue"></span>
         <input type="range" min="1" max="256" value="8" class="slider" id="decslider">
-      </div>
-      <table>
-        <tr>
-          <td>
-            <h1>High-pass parameters:</h1>
-          </td>
-          <td>
-            <form id="lowpass-setting">
-              <label class="radio-inline">
-                <input type="radio" name="optshape" class="highpassRadio" checked> Off
-              </label>
-              <label class="radio-inline">
-                <input type="radio" name="optshape" class="highpassRadio"> First-order (Exponential)
-              </label>
-              <label class="radio-inline">
-                <input type="radio" name="optshape" class="highpassRadio"> Second-order (Elastic)
-              </label>
-            </form>
-          </td>
-        </tr>
-      </table>
-      <div class="sliderContainer">
-        <b>rnd</b> <i>(acceleration strength): </i><span id="rndvalue2"></span>
-        <input type="range" min="1" max="256" value="8" class="slider" id="rndslider2">
-        <b>dec</b> <i>(velocity attenuation): </i><span id="decvalue2"></span>
-        <input type="range" min="1" max="256" value="8" class="slider" id="decslider2">
       </div>
     </body>
     <script>
@@ -118,15 +90,12 @@
         var qtySl = document.getElementById("qtyslider"), qtyVal = document.getElementById("qtyvalue");
         var rndSl = document.getElementById("rndslider"), rndVal = document.getElementById("rndvalue");
         var decSl = document.getElementById("decslider"), decVal = document.getElementById("decvalue");
-        var rndSl2= document.getElementById("rndslider2"),rndVal2= document.getElementById("rndvalue2");
-        var decSl2= document.getElementById("decslider2"),decVal2= document.getElementById("decvalue2");
         var wavVs = document.getElementById("waveViszr"), spectr = document.getElementById("spectrog");
         var dtySl = document.getElementById("dtyslider"), dtyVal = document.getElementById("dtyvalue");
         var rdShp = document.querySelectorAll(".shapeRadio");
         var rdLwp = document.querySelectorAll(".lowpassRadio");
-        var rdHwp = document.querySelectorAll(".highpassRadio");
         var lockP = document.getElementById("lockpos");
-        wavVs.ss = {"pos":0,"val":0,"vel":0,"val2":0,"vel2":0}
+        wavVs.ss = {"pos":0,"val":0,"vel":0,"dco":0}
 
         function updateValues(){
           var params = getLowpassParams()
@@ -134,11 +103,8 @@
           qtyVal.innerHTML = params.qty;
           rndVal.innerHTML = params.rnd;
           decVal.innerHTML = params.dec;
-          rndVal2.innerHTML = params.rnd2;
-          decVal2.innerHTML = params.dec2;
           lastQTY = qtySl.value;
           lastRND = rndSl.value;
-          lastRND2= rndSl2.value;
           lastDTY = dtySl.value;
           dtyVal.innerHTML =
             getSelect(rdShp)<3?
@@ -299,7 +265,6 @@
 
         function getLowpassParams(){
           var k = getSelect(rdLwp)
-          var l = getSelect(rdHwp)
           return {
             "osc": oscSl.value/8,
             "qty": qtySl.value,
@@ -308,11 +273,6 @@
               rndSl.value**2,
             "dec": k<2?1:
               decSl.value,
-            "rnd2": l<1?Infinity:
-              l<2?rndSl2.value:
-              rndSl2.value**2,
-            "dec2": l<2?1:
-              decSl2.value,
             "shape": getSelect(rdShp)
             }
         }
@@ -323,43 +283,37 @@
         }
 
         function oscillations(length,
-          sampleState={"pos":0,"val":0,"vel":0,"val2":0,"vel2":0}){
+          sampleState={"pos":0,"val":0,"vel":0,"dco":0}){
           var params = getLowpassParams()
           var shape = params.shape;
           var osc = params.osc;
           var qty = params.qty;
           var rnd = params.rnd;
           var dec = params.dec;
-          var rnd2= params.rnd2;
-          var dec2= params.dec2;
           
           var pos = sampleState.pos; // SAMPLE POSITION
           var val = sampleState.val; // BLEP VALUE
           var vel = sampleState.vel; // BLEP VELOCITY
-          var val2 = sampleState.val2; // DC OFFSET CANCELLATION
-          var vel2 = sampleState.vel2; // DC OFFSET CANCELLATION
-          val2 = rnd2==Infinity?0:val2;
+          var dco = sampleState.dco; // DC OFFSET CANCELLATION
 
           var data = new Float32Array(length);
           var step = 1/osc;
 
           for(var i = 0; i < data.length; i++) {
             for(var j = 0; j < qty; j++){
-              var sample = shapes[shape](pos)
+              var sample = shapes[shape](pos) - dco
               pos = ( pos + step / qty ) % 2;
               vel += sample - val - vel / dec;
-              val += vel  / rnd;
-              vel2+= val - val2 - vel2 / dec2;
-              val2+= vel2 / rnd2;
+              val += vel / rnd ;
+              //dco += sample / 64;
             }
-            data[i] = val - val2;
+            data[i] = val;
           }
 
           sampleState.pos=pos;
           sampleState.val=val;
           sampleState.vel=vel;
-          sampleState.val2=val2;
-          sampleState.vel2=vel2;
+          sampleState.dco=dco;
 
           return data;
         }
@@ -367,14 +321,11 @@
         var lastQTY = qtySl.value;
         var lastDTY = dtySl.value;
         var lastRND = rndSl.value**2;
-        var lastRND2= rndSl2.value**2;
 
         oscSl.oninput = updateValues
         qtySl.oninput = updateValues
         rndSl.oninput = updateValues
         decSl.oninput = updateValues
-        rndSl2.oninput = updateValues
-        decSl2.oninput = updateValues
         dtySl.oninput = updateValues
 
         function changeShape(){
@@ -414,33 +365,13 @@
           updateValues()
         }
 
-        function changeHighpass(){
-          switch(getSelect(rdHwp)){
-            case 0: 
-              rndSl2.disabled = true;
-              decSl2.disabled = true;
-              break;
-            case 1:
-              rndSl2.disabled = false;
-              decSl2.disabled = true;
-              break;
-            case 2:
-              rndSl2.disabled = false;
-              decSl2.disabled = false;
-              break;
-          }
-          updateValues()
-        }
-
         for(var k=0; k<rdShp.length; k++)
           rdShp[k].onchange = changeShape
         for(var k=0; k<rdLwp.length; k++)
           rdLwp[k].onchange = changeLowpass
-        for(var k=0; k<rdHwp.length; k++)
-          rdHwp[k].onchange = changeHighpass
 
         var audioctx, gainNode, jsNode, fftNode;
-        var sampleStates = {"pos":0,"vel":0,"val":0,"val2":0,"vel2":0};
+        var sampleStates = {"pos":0,"vel":0,"val":0,"dco":0};
 
         function initializeAudio(target){
           if (!audioctx) {
